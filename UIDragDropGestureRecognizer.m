@@ -23,6 +23,7 @@
 //
 
 #import "UIDragDropGestureRecognizer.h"
+#import <UIKit/UIGestureRecognizer.h>
 #import <UIKit/UIGestureRecognizerSubclass.h>
 
 @implementation UIDragDropGestureRecognizer
@@ -121,20 +122,30 @@
                     CGPoint dropPoint = [self locationInView:dropArea];
                     if ([dropArea pointInside:dropPoint withEvent:nil]) {
                         if([self.delegate respondsToSelector:@selector(dragDropGestureRecognizer:canDropView:inView:)]) {
-                            if(![self.delegate performSelector:@selector(dragDropGestureRecognizer:canDropView:inView:) withObject:self.dragView withObject:dropArea]) {
+                            NSMethodSignature* sig = [self.delegate methodSignatureForSelector:@selector(dragDropGestureRecognizer:canDropView:inView:)];
+                            NSInvocation* inv = [NSInvocation invocationWithMethodSignature:sig];
+                            [inv setTarget:self.delegate];
+                            [inv setSelector:@selector(dragDropGestureRecognizer:canDropView:inView:)];
+                            [inv setArgument:(void *)(&self) atIndex:2];
+                            [inv setArgument:(&_dragView) atIndex:3];
+                            [inv setArgument:(void *)(&dropArea) atIndex:4];
+                            [inv invoke];
+                            BOOL result;
+                            [inv getReturnValue:&result];
+                            if(!result) {
                                 continue;
                             }
                         }
-
+                        
                         dropped = YES;
                         [self.dragView removeFromSuperview];
                         [dropArea addSubview:self.dragView];
                         self.dragView.frame = (CGRect) {.origin = CGPointMake(dropPoint.x - self.dragView.frame.size.width/2.0,
-                                                                                          dropPoint.y - self.dragView.frame.size.height/2.0),
-                                                                    .size = self.dragView.frame.size};
+                                                                              dropPoint.y - self.dragView.frame.size.height/2.0),
+                            .size = self.dragView.frame.size};
                         self.endView = dropArea;
                         self.state = UIGestureRecognizerStateEnded;
-
+                        
                         break;
                     }
                 }
@@ -145,7 +156,7 @@
                     self.dragView.frame = (CGRect){.origin = self.startPoint, .size=self.dragView.frame.size};
                     self.state = UIGestureRecognizerStateFailed;
                 }
-            } 
+            }
             self.state = UIGestureRecognizerStateFailed;
         }
             break;
